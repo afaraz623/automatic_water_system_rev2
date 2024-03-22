@@ -29,6 +29,13 @@ services:
       - '3000:3000'
     volumes:
       - grafana_data:/var/lib/grafana
+
+  data_bot:
+    container_name: data_bot
+    build: ./data_bot
+    privileged: true
+    links:
+      - influxdb
       
 volumes:
   grafana_data: {}
