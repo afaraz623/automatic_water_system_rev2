@@ -11,12 +11,13 @@ services:
     ports:
       - '8086:8086'
     volumes:
-      - influxdb_data:/var/lib/influxdb
+      - ./influxdb:/var/lib/influxdb
 
   grafana:
     image: grafana/grafana
     container_name: grafana-server
     restart: always
+    user: root
     depends_on:
       - influxdb
     environment:
@@ -28,8 +29,14 @@ services:
     ports:
       - '3000:3000'
     volumes:
-      - grafana_data:/var/lib/grafana
-      
-volumes:
-  grafana_data: {}
-  influxdb_data: {}
+      - ./grafana:/var/lib/grafana
+
+  data_bot:
+    container_name: data_bot
+    build: ./data_bot
+    privileged: true
+    restart: always
+    depends_on:
+      - influxdb
+    links:
+      - influxdb

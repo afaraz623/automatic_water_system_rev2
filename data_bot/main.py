@@ -6,14 +6,14 @@ import pytz
 import time
 from influxdb import InfluxDBClient
 from typing import Optional
+from logs import log_init, log
 
-# todo: Some way to sync differet timings on top of each other automatically.
 
 # Constants
 ARDUINO_BAUD_RATE       = 115200
 
 INFLUXDB_PORT           = 8086          
-INFLUXDB_HOST           = "localhost"  
+INFLUXDB_HOST           = "influxdb"
 INFLUXDB_USERNAME       = "admin"   
 INFLUXDB_PASSWORD       = "admin"   
 INFLUXDB_DATABASE       = "sensor_data"  
@@ -29,26 +29,26 @@ def _detect_arduino_port() -> Optional[str]:
         for port in list_ports.comports():
                 if "USB2.0-Ser!" in port.description:
                         return port.device
-                return None
+        return None
                         
 def handle_arduino_detection() -> Serial:
         while True:
                 try:
                         arduino_port: str = _detect_arduino_port()
                         if arduino_port is None:
-                                print("Arduino not detected. Retrying in 5 seconds...")
+                                log.info("Arduino not detected. Retrying in 5 seconds...")
                                 time.sleep(5)
                                 continue
 
-                        print(f"Arduino detect at port {arduino_port}")
+                        log.info(f"Arduino detect at port {arduino_port}")
 
                         return serial.Serial(arduino_port, ARDUINO_BAUD_RATE) 
 
                 except SerialException as e:
-                        print(f"Something went wrong while trying to dynamically detect arduino port:\n{str(e)}")
+                        log.error(f"Something went wrong while trying to dynamically detect arduino port: {e}")
 
                 except Exception as e: # need to add proper logging
-                        print(f"An unexpected error occurred while trying to dynamically detect arduino port:\n{str(e)}")
+                        log.critical(f"An unexpected error occurred while trying to dynamically detect arduino port: {e}")
                         time.sleep(0.1)  
 
 def write_to_influxdb(data_dict: dict) -> None:
@@ -68,12 +68,14 @@ def write_to_influxdb(data_dict: dict) -> None:
 
         Influx_Client.write_points(json_payload, database=INFLUXDB_DATABASE)
 
-        print("Data written to database")
+        log.info("Data written to database")
 
 def main():
         last_db_write: float = time.time()
         data_dict: dict = {}  
         Arduino: Serial = None
+
+        log_init(log.DEBUG)
 
         while True:
                 if not Arduino:
@@ -84,7 +86,7 @@ def main():
                                 data = int(Arduino.readline().decode().strip())
                                 timestamp = datetime.now(PAK_TZ).isoformat()
 
-                                print(f"TimeStamp: {timestamp}, Data: {data}")
+                                log.debug(f"TimeStamp: {str(timestamp)}, Data: {str(data)}")
 
                                 if data > VALS_TO_IGNORE_THRES: # this check is for ignoring corrupted values, not a proper solution but good enough
                                         data_dict[timestamp] = data
@@ -98,14 +100,14 @@ def main():
                                         data_dict.clear()
 
                 except (SerialException, OSError) as e:
-                        print(f"Something went wrong in the serial stack or arduino was disconnected:\n{str(e)}")
+                        log.error(f"Something went wrong in the serial stack or arduino was disconnected:{e}")
                         
                         if Arduino:
                                 Arduino.close()
                                 Arduino = None
                         
                 except Exception as e: # add proper logging
-                        print(f"An unexpected error occurred while reading arduino serial:\n{str(e)}") # handle exception properly
+                        log.critical(f"An unexpected error occurred while reading arduino serial:{e}") # handle exception properly
                         time.sleep(0.1)  
 
 if __name__ == '__main__':
