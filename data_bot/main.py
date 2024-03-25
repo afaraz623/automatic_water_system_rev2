@@ -57,7 +57,7 @@ def write_to_influxdb(data_dict: dict) -> None:
         # convert data_dict to InfluxDB JSON format
         for timestamp, value in data_dict.items():
                 json_payload.append({
-                                "measurement": timestamp[0:10], # organizing datasets per day
+                                "measurement": "inline_pres", # organizing datasets per sensor (in future more sensors will be added)
                                 "tags": {},
                                 "time": timestamp,
                                 "fields": 
